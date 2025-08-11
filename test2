@@ -1,0 +1,16 @@
+- name: Read file content
+  slurp:
+    src: /path/to/your/file.txt
+  register: file_content
+
+- name: Send file content to Mattermost webhook
+  uri:
+    url: "https://your-mattermost-url/hooks/your-webhook-token"
+    method: POST
+    body_format: json
+    body:
+      text: |
+        Here is the file content:
+        ```
+        {{ file_content.content | b64decode }}
+        ```
