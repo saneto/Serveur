@@ -1,0 +1,28 @@
+- name: Upload file to Mattermost
+  uri:
+    url: "https://your-mattermost-url.com/api/v4/files"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ mattermost_token }}"
+    body_format: form-multipart
+    body:
+      files:
+        - src: /path/to/your/file.txt
+          filename: file.txt
+    return_content: yes
+  register: upload_response
+
+- name: Post message with file to Mattermost channel
+  uri:
+    url: "https://your-mattermost-url.com/api/v4/posts"
+    method: POST
+    headers:
+      Authorization: "Bearer {{ mattermost_token }}"
+      Content-Type: "application/json"
+    body: |
+      {
+        "channel_id": "{{ mattermost_channel_id }}",
+        "message": "Here is the file:",
+        "file_ids": ["{{ upload_response.json.file_infos[0].id }}"]
+      }
+    status_code: 201
