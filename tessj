@@ -1,0 +1,35 @@
+transformBulkloadDataBar(rows: any[]): ChartConfiguration<'bar'>['data'] {
+  const COLORS: Record<string, string> = {
+    'resource - Ajout': '#D4F0F0',
+    'resource - Suppression': '#C7CEEA',
+    'user - Ajout': '#F1E3DD',
+    'user - Suppression': '#FFC5BF',
+  };
+
+  const sorted = [...rows].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const labels = [...new Set(sorted.map(([year, month]) => `${month} - ${year}`))];
+
+  const series = new Map<string, number[]>();
+
+  sorted.forEach(([year, month, role, type, value]) => {
+    const r = /ress?ource/.test(String(role)) ? 'resource' : 'user'; // gère ressource et delete-user
+    const t = String(type).includes('Ajout') ? 'Ajout' : 'Suppression';
+    const key = `${r} - ${t}`;
+
+    if (!series.has(key)) {
+      series.set(key, new Array(labels.length).fill(0));
+    }
+    series.get(key)![labels.indexOf(`${month} - ${year}`)] += value ?? 0;
+  });
+
+  return {
+    labels,
+    datasets: [...series].map(([label, data]) => ({
+      label,
+      data,
+      backgroundColor: COLORS[label],
+      borderColor: '#ffffff',
+      borderWidth: 1,
+    })),
+  };
+}
