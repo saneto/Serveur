@@ -1,0 +1,71 @@
+// dashboard.service.ts
+import { ChartConfiguration } from 'chart.js';
+
+transformBulkloadDataBar(rows: any[]): ChartConfiguration<'bar'>['data'] {
+  // rows: [year, month, type, action, count]
+  const CATEGORIES = [
+    { key: 'resource - Ajout', color: '#D4F0F0' },
+    { key: 'resource - Suppression', color: '#C7CEEA' },
+    { key: 'user - Ajout', color: '#F1E3DD' },
+    { key: 'user - Suppression', color: '#FFC5BF' },
+  ];
+
+  // 1. Normalize and sum by (year, month, category)
+  const totals = new Map<string, number>(); // "year-month|category" -> sum
+  const periods = new Map<string, { year: number; month: number }>();
+
+  rows.forEach(([year, month, type, action, value]) => {
+    const t = /ress?ource/i.test(String(type)) ? 'resource' : 'user'; // resource/ressource, user/delete-user
+    const a = String(action).includes('Ajout') ? 'Ajout' : 'Suppression';
+    const category = `${t} - ${a}`;
+    const periodKey = `${year}-${month}`;
+
+    periods.set(periodKey, { year: Number(year), month: Number(month) });
+    const k = `${periodKey}|${category}`;
+    totals.set(k, (totals.get(k) ?? 0) + (value ?? 0));
+  });
+
+  // 2. Sort periods, newest first (first label is drawn at the top with indexAxis 'y')
+  const sortedPeriods = [...periods.entries()]
+    .sort(([, a], [, b]) => b.year - a.year || b.month - a.month);
+
+  const labels = sortedPeriods.map(([, p]) => `${p.month} - ${p.year}`);
+
+  // 3. One dataset per category, one value per period
+  const datasets = CATEGORIES.map(({ key, color }) => ({
+    label: key,
+    data: sortedPeriods.map(([periodKey]) => totals.get(`${periodKey}|${key}`) ?? null),
+    backgroundColor: color,
+    borderColor: '#ffffff',
+    borderWidth: 1,
+  }));
+
+  return { labels, datasets };
+}
+
+getBulkloadBarOptions(): ChartConfiguration<'bar'>['options'] {
+  return {
+    indexAxis: 'y',
+    responsive: true,
+    maintainAspectRatio: false,
+    datasets: {
+      bar: {
+        categoryPercentage: 0.85, // width of the month group
+        barPercentage: 0.95,      // width of each bar inside the group
+      },
+    },
+    scales: {
+      x: { stacked: false, beginAtZero: true, ticks: { precision: 0 } },
+      y: { stacked: false },
+    },
+    plugins: {
+      legend: { display: true, position: 'bottom' },
+      title: { display: true, text: "Le nombre d'import en masse par type & action" },
+      tooltip: {
+        callbacks: {
+          label: (ctx) => `${ctx.dataset.label}: ${ctx.parsed.x}`,
+        },
+      },
+    },
+  };
+}
